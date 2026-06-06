@@ -1,0 +1,76 @@
+/* Дата последней редакции: 01/02/2025
+Флэш с адреса 0x8 000 000: таблица векторов прерываний + программный код
++ константы + данные для инициализации + свободно.
+ОЗУ 0x20 000 000: переменные + переменные равные 0 + свободно + стек. */
+
+/* Параметры МК STM32F103C6T6 */
+FLASH_START = 0x8000000; FLASH_LENGTH = 32K; /* Kбайт */
+RAM_START = 0x20000000; RAM_LENGTH = 10K;
+
+/*===================================================================*/
+MEMORY { /* Распределение памяти */
+  /* r = чтение, w = запись, x = выполнение */
+  flash (rx) : ORIGIN = FLASH_START, LENGTH = FLASH_LENGTH
+  ram	(xrw)	: ORIGIN = RAM_START, LENGTH = RAM_LENGTH
+}
+
+/* Объявляем расположение в FLASH */
+SECTIONS { 
+  .text : {
+  . = ALIGN(4); /* "." - текущий адреc + выравнивать адреса по 4 байта */
+  KEEP(*(.interrupt_vector)) /* пока пропускаем таблицу прерываний */
+  *(.text) /* программный код */
+  *(.text*)
+  *(.rodata) /* константы read-only-data */
+  *(.rodata*)
+
+  *(.glue_7)
+  *(.glue_7t)
+  *(.eh_frame)
+  KEEP (*(.init))
+  KEEP (*(.fini))
+  . = ALIGN(4);
+  } > flash
+	
+/* Объявляем расположение в ОЗУ */
+_data_flash = .; /* Запоминаем адрес */
+.data : AT (_data_flash) {
+  . = ALIGN(4);
+  _data_begin = .;
+  *(.data)
+  *(.data*)
+  . = ALIGN(4);
+  _data_end = .;
+  } > ram
+
+/* Переменные, значение которых будет = 0 */
+.bss : {
+  . = ALIGN(4);
+  _bss_begin = .;
+  _bss_start__ = _bss_begin;
+  *(.bss)
+  *(.bss*)
+  /* *(COMMON) */	  
+  /* *(COMMON*) */
+  . = ALIGN(4);
+  _bss_end = .;
+  __bss_end__ = _bss_end;
+  } > ram
+	
+/* Переменные, значениие которых не определено после RESET */
+.noinit (NOLOAD) : {
+  . = ALIGN(4);
+  _noinit_begin = .;
+  *(noinit)
+  *(noinit*)  
+  . = ALIGN(4);
+  _noinit_end = .;
+  } > ram
+	
+/* Стек */
+  _stack_end = RAM_START + RAM_LENGTH;
+}
+
+ENTRY(handler_reset) /* Адрес начала выполнения программы */
+
+/* КОНЕЦ */
